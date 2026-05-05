@@ -1,26 +1,21 @@
 import { computeSplits } from "../data/compute";
-import { transformDataset, mergeDatasets } from "../utils/transformData";
+import { processAmazonDataset } from "../utils/transformData";
 
 /**
- * Production-Grade Data Worker
- * Offloads heavy analytical transformations and statistical computations from the main thread.
+ * Production-Grade Data Worker (Amazon Only)
+ * Handles the review-to-product mapping and statistical compute.
  */
 self.onmessage = (e: MessageEvent) => {
   const { type, payload } = e.data;
 
   if (type === "PROCESS_DATA") {
     try {
-      const { rawData, metadata, reviews } = payload;
+      const { metadata, reviews } = payload;
       
-      // Transform and Merge
-      const metaTransformed = transformDataset(metadata);
-      const reviewsTransformed = transformDataset(reviews);
+      // 1. Process Amazon Pipeline (Merge products + reviews)
+      const merged = processAmazonDataset(metadata, reviews);
       
-      let merged = rawData; // rawData is already aggregated behavior from streaming
-      if (metaTransformed.length > 0) merged = mergeDatasets(merged, metaTransformed);
-      if (reviewsTransformed.length > 0) merged = mergeDatasets(merged, reviewsTransformed);
-      
-      // Compute Splits
+      // 2. Compute Splits using conversionProxy
       const results = computeSplits(merged);
       
       self.postMessage({ type: "SUCCESS", payload: results });

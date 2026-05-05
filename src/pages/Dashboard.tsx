@@ -91,12 +91,13 @@ export default function Dashboard() {
         <div className="max-w-4xl w-full text-center space-y-12">
           <div className="space-y-4">
             <h1 className="text-5xl font-extrabold tracking-tighter text-foreground">
-              Vercel-Safe <span className="text-primary">Data Engine</span>
+              Amazon <span className="text-primary">Intelligence Engine</span>
             </h1>
             <p className="text-muted-foreground text-xl max-w-2xl mx-auto">
-              Production-grade representation optimization. Process 10GB+ datasets via 
-              pre-aggregated API streams or manual side-loading.
+              Optimizing representation through review signals. Process Amazon Products and Reviews 
+              datasets to derive Interest, Trust, and Performance Proxy metrics.
             </p>
+
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
@@ -118,10 +119,12 @@ export default function Dashboard() {
                 <div className="w-14 h-14 rounded-2xl bg-secondary/10 flex items-center justify-center">
                   <span className="text-3xl">🌍</span>
                 </div>
-                <h3 className="font-bold text-2xl">Production Mode</h3>
+                <h3 className="font-bold text-2xl">Enterprise Amazon Mode</h3>
                 <p className="text-muted-foreground">
-                  Connect to the pre-processed Enterprise dataset. High-speed API delivery of aggregated eCommerce behavioral signals.
+                  Connect to the Amazon Products & Reviews dataset. High-speed delivery of 
+                  aggregated sentiment and rating signals transformed into performance proxies.
                 </p>
+
               </div>
               
               <button
@@ -151,9 +154,12 @@ export default function Dashboard() {
       {/* 1. Header with Uploader */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className={`text-3xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Dataset Analysis</h1>
-          <p className={`mt-1 text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
-            Analyzing {products.length} products and {splits.length} computed representation splits.
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className={`text-3xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Amazon Intelligence</h1>
+            <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-bold uppercase tracking-wider border border-secondary/20">Amazon Dataset</span>
+          </div>
+          <p className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+            Analyzing {products.length} products using review-derived metrics (Interest & Trust Proxy).
           </p>
         </div>
         <div className="w-full lg:w-72">
@@ -166,10 +172,11 @@ export default function Dashboard() {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Reset Dataset
+            Reset Analysis
           </button>
         </div>
       </div>
+
 
       {/* 2. Decision Strip */}
       <section id="decision-strip">

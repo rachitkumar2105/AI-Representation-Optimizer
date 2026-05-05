@@ -5,24 +5,27 @@ export type ProductRecord = {
   brand: string;
   price: number;
   rating: number;
+  reviewCount: number;
+  sentiment: number;
   description: string;
-  views: number;
-  cart: number;
-  purchase: number;
+  behavior: {
+    interestScore: number;     // derived from log(reviewCount + 1)
+    trustScore: number;        // derived from rating + sentiment
+    conversionProxy: number;   // composite performance metric
+  };
   [key: string]: any;
 };
 
 export type GroupStats = {
   label: string;
   count: number;
-  conversion: number;
-  cartConversion: number;
-  totalViews: number;
-  totalCart: number;
-  totalPurchase: number;
+  conversion: number;          // maps to conversionProxy
+  totalViews: number;          // maps to total interestScore
+  totalPurchase: number;       // maps to weighted proxy performance
   share: number;
   se: number;
 };
+
 
 
 export type SplitResult = {

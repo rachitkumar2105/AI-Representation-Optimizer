@@ -1,5 +1,4 @@
 import { ProductInsight, ProductRecord, SplitResult, GroupStats } from "./types";
-
 import { safeNumber, safeString } from "../utils/safe";
 
 const isMissing = (value: unknown) => value === null || value === undefined || value === "";
@@ -9,41 +8,34 @@ const formatKey = (key: string) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-// Statistical Standard Error for Conversion Rate
+// Statistical Standard Error for Proxy Metrics
 const computeSE = (p: number, n: number) => {
   const pSafe = safeNumber(p);
   const nSafe = Math.max(safeNumber(n), 1);
   return Math.sqrt((pSafe * (1 - pSafe)) / nSafe);
 };
 
-
-const getConfidence = (n: number, totalN: number): "Low" | "Medium" | "High" => {
-
-  const proportion = n / Math.max(totalN, 1);
-  // Strict Judge Rule: No High Confidence if n < 1000 or < 5% of total
-  if (n < 100 || proportion < 0.01) return "Low"; // Extra safety for very small samples
-  if (n < 1000 || proportion < 0.05) return "Medium";
+const getConfidence = (n: number): "Low" | "Medium" | "High" => {
+  // Amazon-Only Rules (n = group size)
+  if (n < 50) return "Low";
+  if (n < 500) return "Medium";
   return "High";
 };
 
-const computeGroupStats = (products: ProductRecord[], totalCount: number, label: string): GroupStats => {
-  const totalViews = products.reduce((sum, item) => sum + (item.views ?? 0), 0);
-  const totalPurchase = products.reduce((sum, item) => sum + (item.purchase ?? 0), 0);
-  const totalCart = products.reduce((sum, item) => sum + (item.cart ?? 0), 0);
+const computeGroupStats = (products: ProductRecord[], label: string): GroupStats => {
+  const totalInterest = products.reduce((sum, item) => sum + item.behavior.interestScore, 0);
+  const totalPerformance = products.reduce((sum, item) => sum + (item.behavior.conversionProxy * item.behavior.interestScore), 0);
   
-  const conversion = totalViews > 0 ? totalPurchase / totalViews : 0;
-  const cartConversion = totalCart > 0 ? totalPurchase / totalCart : 0;
+  const avgConversionProxy = totalInterest > 0 ? totalPerformance / totalInterest : 0;
 
   return {
     label,
     count: products.length,
-    conversion,
-    cartConversion,
-    totalViews,
-    totalCart,
-    totalPurchase,
-    share: totalCount > 0 ? products.length / totalCount : 0,
-    se: computeSE(conversion, totalViews),
+    conversion: avgConversionProxy,
+    totalViews: totalInterest,
+    totalPurchase: totalPerformance,
+    share: products.length > 0 ? 1 : 0, // Placeholder
+    se: computeSE(avgConversionProxy, products.length),
   };
 };
 
@@ -59,7 +51,7 @@ const computeQuantile = (values: number[], q: number) => {
   return sorted[base];
 };
 
-const buildNumericSplits = (products: ProductRecord[], featureKey: string, totalDatasetSize: number): SplitResult[] => {
+const buildNumericSplits = (products: ProductRecord[], featureKey: string): SplitResult[] => {
   const values = products
     .map((product) => product[featureKey])
     .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
@@ -69,8 +61,6 @@ const buildNumericSplits = (products: ProductRecord[], featureKey: string, total
   const median = computeQuantile(values, 0.5);
   const q1 = computeQuantile(values, 0.25);
   const q3 = computeQuantile(values, 0.75);
-
-  const totalCount = products.length;
 
   const buildSplit = (
     splitType: "median" | "q1" | "q3",
@@ -90,13 +80,10 @@ const buildNumericSplits = (products: ProductRecord[], featureKey: string, total
       return comparator === "lte" ? value > threshold : value < threshold;
     });
 
-    const groupA = computeGroupStats(groupAProducts, totalCount, groupALabel);
-    const groupB = computeGroupStats(groupBProducts, totalCount, groupBLabel);
+    const groupA = computeGroupStats(groupAProducts, groupALabel);
+    const groupB = computeGroupStats(groupBProducts, groupBLabel);
     const difference = groupA.conversion - groupB.conversion;
-    
-    // Confidence is bounded by the smallest group and proportion
-    const confidence = getConfidence(Math.min(groupA.count, groupB.count), totalDatasetSize);
-
+    const confidence = getConfidence(Math.min(groupA.count, groupB.count));
 
     return {
       id: `${featureKey}-${splitType}`,
@@ -120,18 +107,16 @@ const buildNumericSplits = (products: ProductRecord[], featureKey: string, total
   ].filter(s => s.groupA.count > 0 && s.groupB.count > 0);
 };
 
-const buildBooleanSplit = (products: ProductRecord[], featureKey: string, totalDatasetSize: number): SplitResult | null => {
-  const totalCount = products.length;
+const buildBooleanSplit = (products: ProductRecord[], featureKey: string): SplitResult | null => {
   const groupAProducts = products.filter((product) => !isMissing(product[featureKey]));
   const groupBProducts = products.filter((product) => isMissing(product[featureKey]));
 
   if (groupAProducts.length === 0 || groupBProducts.length === 0) return null;
 
-  const groupA = computeGroupStats(groupAProducts, totalCount, "Present");
-  const groupB = computeGroupStats(groupBProducts, totalCount, "Missing");
+  const groupA = computeGroupStats(groupAProducts, "Present");
+  const groupB = computeGroupStats(groupBProducts, "Missing");
   const difference = groupA.conversion - groupB.conversion;
-  const confidence = getConfidence(Math.min(groupA.count, groupB.count), totalDatasetSize);
-
+  const confidence = getConfidence(Math.min(groupA.count, groupB.count));
 
   return {
     id: `${featureKey}-presence`,
@@ -147,14 +132,13 @@ const buildBooleanSplit = (products: ProductRecord[], featureKey: string, totalD
   };
 };
 
-const buildCategoricalSplits = (products: ProductRecord[], featureKey: string, totalDatasetSize: number): SplitResult[] => {
+const buildCategoricalSplits = (products: ProductRecord[], featureKey: string): SplitResult[] => {
   const values = products
     .map((product) => product[featureKey])
     .filter((value): value is string => typeof value === "string" && value !== "");
 
   if (values.length === 0) return [];
 
-  // High-cardinality handling: Top 10 + Others
   const counts = new Map<string, number>();
   values.forEach(v => counts.set(v, (counts.get(v) || 0) + 1));
   const topValues = Array.from(counts.entries())
@@ -162,16 +146,13 @@ const buildCategoricalSplits = (products: ProductRecord[], featureKey: string, t
     .slice(0, 10)
     .map(([v]) => v);
 
-  const totalCount = products.length;
-
   return topValues.map((value) => {
     const groupAProducts = products.filter((product) => product[featureKey] === value);
     const groupBProducts = products.filter((product) => product[featureKey] !== value);
-    const groupA = computeGroupStats(groupAProducts, totalCount, value);
-    const groupB = computeGroupStats(groupBProducts, totalCount, "Rest");
+    const groupA = computeGroupStats(groupAProducts, value);
+    const groupB = computeGroupStats(groupBProducts, "Rest");
     const difference = groupA.conversion - groupB.conversion;
-    const confidence = getConfidence(Math.min(groupA.count, groupB.count), totalDatasetSize);
-
+    const confidence = getConfidence(Math.min(groupA.count, groupB.count));
 
     return {
       id: `${featureKey}-category-${value}`,
@@ -194,11 +175,10 @@ const getFeatureKeys = (products: ProductRecord[]) => {
   const stringKeys = new Set<string>();
   const presenceKeys = new Set<string>();
 
-  // Zero-heuristic discovery: No hardcoded EXCLUDED_KEYS
   products.forEach((product) => {
     Object.entries(product).forEach(([key, value]) => {
-      // Exclude core outcome metrics and internal fields
-      if (["views", "cart", "purchase", "behavior", "rawData", "id", "name", "id_original"].includes(key)) return;
+      // Exclude id and behavior object (Zero-Heuristic Rule)
+      if (["id", "behavior", "name", "id_original", "description"].includes(key)) return;
 
       if (typeof value === "number" && !Number.isNaN(value)) {
         numericKeys.add(key);
@@ -213,51 +193,25 @@ const getFeatureKeys = (products: ProductRecord[]) => {
   });
 
   return {
-    numericKeys: Array.from(numericKeys).filter(k => {
-        const vals = products.map(p => p[k] as number).filter(v => typeof v === 'number');
-        return new Set(vals).size > 1; // Drop zero-variance
-    }),
-    stringKeys: Array.from(stringKeys).filter(k => {
-        const vals = products.map(p => p[k] as string).filter(v => typeof v === 'string');
-        return new Set(vals).size > 1;
-    }),
+    numericKeys: Array.from(numericKeys).filter(k => new Set(products.map(p => p[k])).size > 1),
+    stringKeys: Array.from(stringKeys).filter(k => new Set(products.map(p => p[k])).size > 1),
     presenceKeys: Array.from(presenceKeys),
   };
 };
 
 export const computeSplits = (products: ProductRecord[]) => {
-  const totalDatasetSize = products.length;
   const { numericKeys, stringKeys, presenceKeys } = getFeatureKeys(products);
 
-  const numericSplits = numericKeys.flatMap((key) => buildNumericSplits(products, key, totalDatasetSize));
+  const numericSplits = numericKeys.flatMap((key) => buildNumericSplits(products, key));
   const booleanSplits = presenceKeys
-    .map((key) => buildBooleanSplit(products, key, totalDatasetSize))
+    .map((key) => buildBooleanSplit(products, key))
     .filter((split): split is SplitResult => Boolean(split));
-  const categoricalSplits = stringKeys.flatMap((key) => buildCategoricalSplits(products, key, totalDatasetSize));
+  const categoricalSplits = stringKeys.flatMap((key) => buildCategoricalSplits(products, key));
 
   const splits = [...numericSplits, ...booleanSplits, ...categoricalSplits]
-    .filter(s => s.groupA.count > 0 && s.groupB.count > 0)
     .sort((a, b) => b.absDifference - a.absDifference);
 
   return { products, splits };
-};
-
-const determineGroupLabel = (split: SplitResult, product: ProductRecord) => {
-  const value = product[split.featureKey];
-  if (split.type === "numeric") {
-    if (typeof value !== "number" || split.threshold === undefined) return split.groupB.label;
-    if (split.splitType === "q3") {
-      return value >= split.threshold ? split.groupA.label : split.groupB.label;
-    }
-    return value <= split.threshold ? split.groupA.label : split.groupB.label;
-  }
-  if (split.type === "boolean") {
-    return isMissing(value) ? split.groupB.label : split.groupA.label;
-  }
-  if (split.type === "categorical") {
-    return value === split.categoryValue ? split.groupA.label : split.groupB.label;
-  }
-  return split.groupB.label;
 };
 
 export const buildProductInsights = (
@@ -265,30 +219,31 @@ export const buildProductInsights = (
   splits: SplitResult[]
 ): ProductInsight[] => {
   return splits.map((split) => {
-    const groupLabel = determineGroupLabel(split, product);
+    const value = product[split.featureKey];
+    let groupLabel = split.groupB.label;
+    
+    if (split.type === "numeric" && typeof value === "number") {
+      groupLabel = split.splitType === "q3" ? (value >= split.threshold! ? split.groupA.label : split.groupB.label) : (value <= split.threshold! ? split.groupA.label : split.groupB.label);
+    } else if (split.type === "boolean") {
+      groupLabel = isMissing(value) ? split.groupB.label : split.groupA.label;
+    } else if (split.type === "categorical") {
+      groupLabel = value === split.categoryValue ? split.groupA.label : split.groupB.label;
+    }
+
     const isGroupAABetter = split.groupA.conversion >= split.groupB.conversion;
     const betterGroup = isGroupAABetter ? split.groupA.label : split.groupB.label;
     const isOptimal = groupLabel === betterGroup;
-
     const absDelta = Math.abs(split.difference);
     const deltaStr = `${(absDelta * 100).toFixed(2)}%`;
     const feature = split.featureLabel;
 
-    // Statistical markers for actions
-    const n = isGroupAABetter ? split.groupA.count : split.groupB.count;
-    const conf = split.confidence;
-
-    // Action Intensity Variation
+    let action = "";
     const intensity = absDelta > 0.05 ? "CRITICAL" : absDelta > 0.02 ? "HIGH-IMPACT" : "OPTIMIZATION";
 
-    let action = "";
     if (isOptimal) {
-      action = `[${intensity}] Performance Leader: Current ${feature} state is optimal. This segment yields a +${deltaStr} conversion advantage (n=${n}, ${conf} Confidence). Maintain alignment with '${betterGroup}'.`;
+      action = `[${intensity}] Performance Leader: Products with ${feature} in '${betterGroup}' show +${deltaStr} higher conversionProxy (n=${split.groupA.count}). This product is already optimized.`;
     } else {
-      const productVal = String(product[split.featureKey] ?? "Missing");
-      const betterVal = betterGroup;
-      
-      action = `[${intensity}] Strategic Pivot: Products with ${feature} in '${betterVal}' outperform this item by +${deltaStr} (n=${n}, ${conf} Confidence). Current state is '${productVal}'. Consider aligning to '${betterVal}'.`;
+      action = `[${intensity}] Improvement Opportunity: Products with ${feature} in '${betterGroup}' show +${deltaStr} higher conversionProxy (n=${isGroupAABetter ? split.groupA.count : split.groupB.count}). This product has '${groupLabel}'. Consider aligning to '${betterGroup}'.`;
     }
 
     return {

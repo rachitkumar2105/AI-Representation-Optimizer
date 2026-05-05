@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, ReactNode, useCallback } from "react";
-
 import { ProductRecord } from "../data/types";
 import { transformDataset, mergeDatasets } from "../utils/transformData";
 import { loadAllProductionData } from "../utils/loadAllData";
 
 type DataContextType = {
-  rawData: any[];
   processedData: ProductRecord[];
+  metadata: any[];
+  reviews: any[];
   ingestData: (data: any[]) => void;
   loadProductionData: () => Promise<void>;
   resetData: () => void;
@@ -17,11 +17,11 @@ type DataContextType = {
   isReady: boolean;
 };
 
-
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [rawData, setRawData] = useState<any[]>([]);
+  const [metadata, setMetadata] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [processedData, setProcessedData] = useState<ProductRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +30,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const ingestData = useCallback((newData: any[]) => {
     const transformed = transformDataset(newData);
     setProcessedData((prev) => mergeDatasets(prev, transformed));
-    setRawData((prev) => [...prev, ...newData]);
   }, []);
 
   const loadProductionData = useCallback(async () => {
@@ -39,17 +38,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLoadProgress({});
     
     try {
-      const { behavior } = await loadAllProductionData((file, count) => {
+      const result = await loadAllProductionData((file, count) => {
         setLoadProgress(prev => ({ ...prev, [file]: count }));
       });
-
       
-      // 'behavior' here is already an array of aggregated ProductRecords from the stream
-      // We store it in processedData, which triggers the useDataset worker
-      setProcessedData(behavior);
-      
-      // Metadata and reviews are passed through as well if needed for worker
-      // For this implementation, we'll assume they're handled in the next worker postMessage
+      setMetadata(result.metadata);
+      setReviews(result.reviews);
+      setProcessedData([{ id: "trigger-load" } as any]); // Trigger worker
     } catch (err: any) {
       setError(`Failed to load production data: ${err.message}`);
     } finally {
@@ -57,10 +52,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-
-
   const resetData = useCallback(() => {
-    setRawData([]);
+    setMetadata([]);
+    setReviews([]);
     setProcessedData([]);
     setError(null);
   }, []);
@@ -70,8 +64,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContext.Provider
       value={{
-        rawData,
         processedData,
+        metadata,
+        reviews,
         ingestData,
         loadProductionData,
         resetData,
@@ -81,13 +76,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         isLoading,
         isReady,
       }}
-
     >
       {children}
     </DataContext.Provider>
   );
 }
-
 
 export function useData() {
   const context = useContext(DataContext);
