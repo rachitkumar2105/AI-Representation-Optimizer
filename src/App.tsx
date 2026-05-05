@@ -6,22 +6,27 @@ import { ThemeProvider } from "./hooks/useTheme";
 import { DatasetProvider } from "./hooks/useDataset";
 import { DataProvider } from "./context/DataContext";
 
+import GlobalErrorBoundary from "./components/GlobalErrorBoundary";
+
 export default function App() {
   return (
-    <ThemeProvider>
-      <DataProvider>
-        <DatasetProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route element={<MainLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/data" element={<DataDetails />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </DatasetProvider>
-      </DataProvider>
-    </ThemeProvider>
+    <GlobalErrorBoundary>
+      <ThemeProvider>
+        <DataProvider>
+          <DatasetProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route element={<MainLayout />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/data" element={<DataDetails />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </DatasetProvider>
+        </DataProvider>
+      </ThemeProvider>
+    </GlobalErrorBoundary>
   );
 }
+

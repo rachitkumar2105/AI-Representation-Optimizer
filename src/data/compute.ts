@@ -1,16 +1,21 @@
 import { ProductInsight, ProductRecord, SplitResult, GroupStats } from "./types";
 
+import { safeNumber, safeString } from "../utils/safe";
+
 const isMissing = (value: unknown) => value === null || value === undefined || value === "";
 
 const formatKey = (key: string) =>
-  key
+  safeString(key)
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 // Statistical Standard Error for Conversion Rate
 const computeSE = (p: number, n: number) => {
-  return Math.sqrt((p * (1 - p)) / Math.max(n, 1));
+  const pSafe = safeNumber(p);
+  const nSafe = Math.max(safeNumber(n), 1);
+  return Math.sqrt((pSafe * (1 - pSafe)) / nSafe);
 };
+
 
 const getConfidence = (n: number, totalN: number): "Low" | "Medium" | "High" => {
 

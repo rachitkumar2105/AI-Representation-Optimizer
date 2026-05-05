@@ -5,17 +5,18 @@ import { ProductRecord } from "../data/types";
  * Merges eCommerce Behavior and Amazon Product Metadata with high resilience.
  */
 
+import { safeNumber } from "./safe";
+
+
 const getVal = (obj: any, keys: string[]) => {
-  const foundKey = Object.keys(obj).find((k) =>
+  const foundKey = Object.keys(obj || {}).find((k) =>
     keys.some((target) => k.toLowerCase() === target.toLowerCase())
   );
   return foundKey ? obj[foundKey] : undefined;
 };
 
-const toNum = (val: any) => {
-  const n = parseFloat(val);
-  return isNaN(n) ? 0 : n;
-};
+const toNum = (val: any) => safeNumber(val);
+
 
 /**
  * Incremental Aggregator for Behavioral Events.

@@ -88,58 +88,62 @@ export default function Dashboard() {
   if (!isReady) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-8">
-        <div className="max-w-2xl w-full text-center space-y-8">
+        <div className="max-w-4xl w-full text-center space-y-12">
           <div className="space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight text-foreground">
-              Production Data Integration Engine
+            <h1 className="text-5xl font-extrabold tracking-tighter text-foreground">
+              Vercel-Safe <span className="text-primary">Data Engine</span>
             </h1>
-            <p className="text-muted-foreground text-lg">
-              Upload your eCommerce behavior logs and product metadata to generate
-              statistically significant optimization insights.
+            <p className="text-muted-foreground text-xl max-w-2xl mx-auto">
+              Production-grade representation optimization. Process 10GB+ datasets via 
+              pre-aggregated API streams or manual side-loading.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl border border-border bg-card/50 backdrop-blur-sm space-y-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                <span className="text-2xl">📁</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+            <div className="p-8 rounded-3xl border border-border bg-card/40 backdrop-blur-md space-y-6 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <span className="text-3xl">🏗️</span>
+                </div>
+                <h3 className="font-bold text-2xl">Custom Lab Mode</h3>
+                <p className="text-muted-foreground">
+                  Upload raw CSV/XLSX files. Our streaming engine processes them chunk-by-chunk in a Web Worker to ensure 0% UI freeze.
+                </p>
               </div>
-              <h3 className="font-semibold text-xl">Custom Upload</h3>
-              <p className="text-sm text-muted-foreground">
-                Upload your own .csv or .xlsx files with unknown schemas.
-              </p>
               <FileUploader />
             </div>
 
-            <div className="p-6 rounded-2xl border border-border bg-card/50 backdrop-blur-sm space-y-4 flex flex-col justify-between">
+            <div className="p-8 rounded-3xl border border-primary/20 bg-primary/5 backdrop-blur-md space-y-6 flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mx-auto">
-                  <span className="text-2xl">🚀</span>
+                <div className="w-14 h-14 rounded-2xl bg-secondary/10 flex items-center justify-center">
+                  <span className="text-3xl">🌍</span>
                 </div>
-                <h3 className="font-semibold text-xl">Production Sample</h3>
-                <p className="text-sm text-muted-foreground">
-                  Load pre-configured Kaggle & Amazon datasets (10GB+ scale) using sampled streaming.
+                <h3 className="font-bold text-2xl">Production Mode</h3>
+                <p className="text-muted-foreground">
+                  Connect to the pre-processed Enterprise dataset. High-speed API delivery of aggregated eCommerce behavioral signals.
                 </p>
               </div>
               
               <button
                 onClick={loadProductionData}
-                className="w-full py-3 px-4 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-90 transition-opacity"
+                disabled={isLoading}
+                className="w-full py-4 px-6 rounded-2xl bg-primary text-primary-foreground font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
               >
-                Load Production Datasets
+                {isLoading ? "Connecting to API..." : "Load Enterprise Dataset"}
               </button>
             </div>
           </div>
 
           {error && (
-            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-              {error}
+            <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium animate-in fade-in slide-in-from-top-4">
+              ⚠️ {error}
             </div>
           )}
         </div>
       </div>
     );
   }
+
 
 
   return (
