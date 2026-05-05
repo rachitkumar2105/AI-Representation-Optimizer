@@ -1,82 +1,95 @@
-import { ProductInsight } from "../data/types";
+import { ProductRecord } from "../data/types";
 import { useTheme } from "../hooks/useTheme";
 
 type ProductPositionCardProps = {
-  insight: ProductInsight;
+  product?: ProductRecord;
 };
 
-export default function ProductPositionCard({ insight }: ProductPositionCardProps) {
+/**
+ * Product-Level Traceability Card
+ * Shows the raw attributes and performance metrics for the selected product.
+ */
+export default function ProductPositionCard({ product }: ProductPositionCardProps) {
   const { theme } = useTheme();
-  const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
+  
+  if (!product) return null;
 
-  const isGroupA = insight.groupLabel === insight.groupA.label;
+  const isDark = theme === "dark";
 
   return (
-    <div
-      className={`relative overflow-hidden rounded-2xl border p-5 ${
-        theme === "dark" ? "border-slate-800 bg-slate-900/60" : "border-slate-200 bg-white"
-      }`}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h4 className={`text-sm font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
-            {insight.featureLabel}
+    <div className={`rounded-2xl border p-6 transition-all ${
+      isDark ? "border-slate-800 bg-slate-900/40" : "border-slate-200 bg-white"
+    }`}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className={`font-bold text-lg ${isDark ? "text-white" : "text-slate-900"}`}>
+              Product Traceability
+            </h3>
+            <p className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+              ASIN: {product.id}
+            </p>
+          </div>
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <span className="text-sm">🔍</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <DetailBox label="Rating" value={`${product.rating.toFixed(1)} / 5`} subValue={`${product.reviewCount} Reviews`} isDark={isDark} />
+          <DetailBox 
+            label="Sentiment" 
+            value={`${(product.sentiment * 100).toFixed(1)}%`} 
+            subValue={product.sentiment > 0.5 ? "Positive" : "Neutral/Negative"} 
+            isDark={isDark} 
+          />
+        </div>
+
+        <div className="space-y-4 pt-4 border-t border-slate-200/10">
+          <h4 className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+            Computed Performance
           </h4>
-          <p className={`text-[10px] uppercase tracking-wider ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`}>
-            Mapping Visualization
+          <div className={`p-4 rounded-xl border flex items-center justify-between ${
+            isDark ? "border-slate-800 bg-slate-950/40" : "border-slate-100 bg-slate-50"
+          }`}>
+            <div>
+              <span className={`block text-xs font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                Proxy Conversion
+              </span>
+              <span className="text-[10px] text-slate-500 italic">
+                (trust × interest)
+              </span>
+            </div>
+            <span className="text-2xl font-bold text-primary">
+              {(product.behavior?.conversionProxy * 100).toFixed(2)}%
+            </span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
+          <p className="text-[11px] leading-relaxed text-amber-500/80 italic">
+            This product is being compared against its category baseline using review-derived signals.
           </p>
         </div>
-        <div className="text-right">
-          <div className={`font-mono text-xs font-bold ${
-            insight.difference >= 0 ? "text-brand-success" : "text-brand-danger"
-          }`}>
-            Δ {formatPercent(insight.difference)}
-          </div>
-          <div className={`text-[9px] font-bold uppercase ${
-            insight.confidence === "High" ? "text-emerald-500" :
-            insight.confidence === "Medium" ? "text-amber-500" :
-            "text-rose-500"
-          }`}>
-            {insight.confidence} Conf.
-          </div>
-        </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="space-y-3">
-        <div className={`relative flex items-center justify-between rounded-lg p-3 border transition-all ${
-          isGroupA 
-            ? (theme === "dark" ? "border-brand-primary/50 bg-brand-primary/10 ring-1 ring-brand-primary/20" : "border-brand-primary/30 bg-brand-primary/5 ring-1 ring-brand-primary/10")
-            : (theme === "dark" ? "border-transparent bg-slate-950/40" : "border-transparent bg-slate-50")
-        }`}>
-          <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${isGroupA ? "bg-brand-primary shadow-[0_0_8px_rgba(99,102,241,0.6)]" : "bg-slate-500/30"}`}></div>
-            <span className={`text-xs font-semibold ${isGroupA ? (theme === "dark" ? "text-white" : "text-brand-primary") : (theme === "dark" ? "text-slate-400" : "text-slate-500")}`}>
-              Group A: {insight.groupA.label}
-            </span>
-          </div>
-          <div className={`text-[10px] font-mono ${isGroupA ? (theme === "dark" ? "text-slate-200" : "text-slate-700") : "text-slate-500"}`}>
-            {formatPercent(insight.groupA.conversion)} CV · n={insight.groupA.count}
-          </div>
-          {isGroupA && <span className="absolute -top-1.5 -right-1.5 rounded-full bg-brand-primary px-1.5 py-0.5 text-[8px] font-bold text-white uppercase tracking-tighter">Your Product</span>}
-        </div>
-
-        <div className={`relative flex items-center justify-between rounded-lg p-3 border transition-all ${
-          !isGroupA 
-            ? (theme === "dark" ? "border-brand-primary/50 bg-brand-primary/10 ring-1 ring-brand-primary/20" : "border-brand-primary/30 bg-brand-primary/5 ring-1 ring-brand-primary/10")
-            : (theme === "dark" ? "border-transparent bg-slate-950/40" : "border-transparent bg-slate-50")
-        }`}>
-          <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${!isGroupA ? "bg-brand-primary shadow-[0_0_8px_rgba(99,102,241,0.6)]" : "bg-slate-500/30"}`}></div>
-            <span className={`text-xs font-semibold ${!isGroupA ? (theme === "dark" ? "text-white" : "text-brand-primary") : (theme === "dark" ? "text-slate-400" : "text-slate-500")}`}>
-              Group B: {insight.groupB.label}
-            </span>
-          </div>
-          <div className={`text-[10px] font-mono ${!isGroupA ? (theme === "dark" ? "text-slate-200" : "text-slate-700") : "text-slate-500"}`}>
-            {formatPercent(insight.groupB.conversion)} CV · n={insight.groupB.count}
-          </div>
-          {!isGroupA && <span className="absolute -top-1.5 -right-1.5 rounded-full bg-brand-primary px-1.5 py-0.5 text-[8px] font-bold text-white uppercase tracking-tighter">Your Product</span>}
-        </div>
-      </div>
+function DetailBox({ label, value, subValue, isDark }: { label: string, value: string, subValue: string, isDark: boolean }) {
+  return (
+    <div className={`p-4 rounded-xl border ${
+      isDark ? "border-slate-800 bg-slate-900/60" : "border-slate-100 bg-white shadow-sm"
+    }`}>
+      <span className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+        {label}
+      </span>
+      <span className={`block text-base font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+        {value}
+      </span>
+      <span className="text-[10px] text-slate-500">
+        {subValue}
+      </span>
     </div>
   );
 }

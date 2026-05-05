@@ -5,18 +5,19 @@ import ProductSelector from "../components/ProductSelector";
 import ProductPositionCard from "../components/ProductPositionCard";
 import ActionCard from "../components/ActionCard";
 import FileUploader from "../components/FileUploader";
+import DataBreakdown from "../components/DataBreakdown";
+import TransparencyPanel from "../components/TransparencyPanel";
 import { useDataset } from "../hooks/useDataset";
 import { useTheme } from "../hooks/useTheme";
 import { useData } from "../context/DataContext";
 
 export default function Dashboard() {
+  const { isReady, loadProductionData, isLoading, error, isAuditMode } = useData();
   const { splits, products, loading, getProductInsights } = useDataset();
   const { theme } = useTheme();
-  const { isReady, loadProductionData, isLoading, loadProgress, error } = useData();
 
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
 
-  // Automatically select the first product once data is ready
   useEffect(() => {
     if (isReady && products.length > 0 && !selectedProductId) {
       setSelectedProductId(products[0].id);
@@ -35,55 +36,6 @@ export default function Dashboard() {
 
   const topSplit = splits[0];
   const topInsight = insights.find((insight) => insight.splitId === topSplit?.id);
-
-  if (isLoading || loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8">
-        <div className="max-w-md w-full text-center space-y-8">
-          <div className="relative mx-auto w-24 h-24">
-            <div className="absolute inset-0 rounded-full border-4 border-secondary/20 border-t-secondary animate-spin" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-3xl animate-pulse">⚡</span>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold">
-              {isLoading ? "Ingesting Streams" : "Computing Insights"}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {isLoading 
-                ? "Processing multi-million row event logs via streaming..."
-                : "Executing zero-heuristic statistical analysis in background worker..."
-              }
-            </p>
-          </div>
-
-          {isLoading && (
-            <div className="space-y-3 bg-secondary/5 p-4 rounded-2xl border border-secondary/10">
-              <div className="flex justify-between text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-                <span>Live Ingestion Progress</span>
-                <span>Streaming Active</span>
-              </div>
-              <div className="space-y-2">
-                {Object.entries(loadProgress).map(([file, count]) => (
-                  <div key={file} className="flex justify-between text-xs items-center">
-                    <span className="truncate text-muted-foreground">{file}</span>
-                    <span className="font-mono font-bold text-secondary">
-                      {(count / 1000000).toFixed(2)}M rows
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="h-1 w-full bg-secondary/10 rounded-full overflow-hidden">
-                <div className="h-full bg-secondary animate-pulse w-full" />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   if (!isReady) {
     return (
@@ -148,17 +100,23 @@ export default function Dashboard() {
     );
   }
 
-
-
+  if (isLoading || loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <p className="text-lg font-medium animate-pulse">Analyzing Amazon Dataset...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 pb-20">
-      {/* 1. Header with Uploader */}
+      {/* 1. Header with Controls */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className={`text-3xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Dataset Analysis</h1>
           <p className={`mt-1 text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
-            Analyzing {products.length} products and {splits.length} computed representation splits.
+            Analyzing {products.length} products with performance proxies derived from customer sentiment.
           </p>
         </div>
         <div className="w-full lg:w-72">
@@ -168,71 +126,55 @@ export default function Dashboard() {
               theme === "dark" ? "border-slate-700 bg-slate-800 text-white hover:bg-slate-700" : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
             }`}
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
             Reset Dataset
           </button>
         </div>
       </div>
 
+      <TransparencyPanel />
+
       {/* 2. Decision Strip */}
       <section id="decision-strip">
         {topSplit && topInsight && selectedProduct && (
-          <DecisionStrip
-            title={`Critical Insight: ${selectedProduct.name}`}
-            description={topInsight.action}
-            badge={`Delta: ${(Math.abs(topSplit.difference) * 100).toFixed(2)}% (${topSplit.confidence} Confidence)`}
-          />
+          <div className="space-y-4">
+            <DecisionStrip
+              title={`Critical Insight: ${selectedProduct.name}`}
+              description={topInsight.action}
+              badge={`Delta: ${(Math.abs(topSplit.difference) * 100).toFixed(2)}% (${topSplit.confidence} Confidence)`}
+            />
+            <p className="text-[10px] text-center text-muted-foreground italic">
+              * This insight is derived from review-based performance signals, not actual conversion data.
+            </p>
+          </div>
         )}
       </section>
 
       <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
-        <aside className="space-y-6">
+        <aside className="space-y-8">
           <ProductSelector
             products={products}
-            selectedId={selectedProductId}
+            selectedId={selectedProduct?.id || ""}
             onSelect={setSelectedProductId}
-            enableNavigate={false}
           />
+          {isAuditMode && <DataBreakdown splits={splits} />}
         </aside>
 
-        <main className="space-y-12">
-          <section id="differences">
-            <DifferenceTable splits={splits} />
-          </section>
-
-          {selectedProduct && (
-            <>
-              <section id="mapping" className="space-y-6">
-                <div className="px-2">
-                  <h2 className={`text-2xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Product Mapping</h2>
-                  <p className={`mt-1 text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
-                    Visualizing how '{selectedProduct.name}' aligns with top-performing data segments.
-                  </p>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {insights.slice(0, 4).map((insight) => (
-                    <ProductPositionCard key={insight.splitId} insight={insight} />
-                  ))}
-                </div>
-              </section>
-
-              <section id="actions" className="space-y-6">
-                <div className="px-2">
-                  <h2 className={`text-2xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Prescriptive Actions</h2>
-                  <p className={`mt-1 text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
-                    Data-backed optimization steps based on observed conversion lift.
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  {insights.slice(0, 4).map((insight) => (
-                    <ActionCard key={insight.splitId} insight={insight} />
-                  ))}
-                </div>
-              </section>
-            </>
-          )}
+        <main className="space-y-8">
+          <div className="grid gap-8 md:grid-cols-2">
+            <ProductPositionCard product={selectedProduct} />
+            <div className="space-y-4">
+              <h3 className={`text-sm font-bold uppercase tracking-widest ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`}>
+                Evidence-Backed Actions
+              </h3>
+              <div className="space-y-4">
+                {insights.map((insight, i) => (
+                  <ActionCard key={i} insight={insight} />
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <DifferenceTable splits={splits} />
         </main>
       </div>
     </div>

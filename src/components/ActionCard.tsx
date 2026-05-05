@@ -37,7 +37,7 @@ export default function ActionCard({ insight }: ActionCardProps) {
               insight.confidence === "Medium" ? "bg-amber-500/10 text-amber-500" :
               "bg-rose-500/10 text-rose-500"
             }`}>
-              {insight.confidence} Confidence
+              {insight.confidence} Confidence (n={insight.groupB.count + insight.groupA.count})
             </span>
           </div>
           <h4 className={`mt-2 font-bold leading-tight ${
@@ -45,6 +45,14 @@ export default function ActionCard({ insight }: ActionCardProps) {
           }`}>
             {insight.action}
           </h4>
+          <p className={`mt-1 text-[11px] leading-relaxed ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+            Products with <span className="font-bold">{insight.featureLabel}</span> matching the better group show a 
+            <span className={`font-bold mx-1 ${insight.difference >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+              {(Math.abs(insight.difference) * 100).toFixed(1)}%
+            </span> 
+            lift in conversionProxy based on {insight.groupA.count + insight.groupB.count} data points.
+          </p>
+
         </div>
         
         <div className="text-right whitespace-nowrap">
