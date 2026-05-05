@@ -36,6 +36,55 @@ export default function Dashboard() {
   const topSplit = splits[0];
   const topInsight = insights.find((insight) => insight.splitId === topSplit?.id);
 
+  if (isLoading || loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8">
+        <div className="max-w-md w-full text-center space-y-8">
+          <div className="relative mx-auto w-24 h-24">
+            <div className="absolute inset-0 rounded-full border-4 border-secondary/20 border-t-secondary animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-3xl animate-pulse">⚡</span>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">
+              {isLoading ? "Ingesting Streams" : "Computing Insights"}
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              {isLoading 
+                ? "Processing multi-million row event logs via streaming..."
+                : "Executing zero-heuristic statistical analysis in background worker..."
+              }
+            </p>
+          </div>
+
+          {isLoading && (
+            <div className="space-y-3 bg-secondary/5 p-4 rounded-2xl border border-secondary/10">
+              <div className="flex justify-between text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                <span>Live Ingestion Progress</span>
+                <span>Streaming Active</span>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(loadProgress).map(([file, count]) => (
+                  <div key={file} className="flex justify-between text-xs items-center">
+                    <span className="truncate text-muted-foreground">{file}</span>
+                    <span className="font-mono font-bold text-secondary">
+                      {(count / 1000000).toFixed(2)}M rows
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="h-1 w-full bg-secondary/10 rounded-full overflow-hidden">
+                <div className="h-full bg-secondary animate-pulse w-full" />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (!isReady) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-8">
@@ -73,37 +122,14 @@ export default function Dashboard() {
                 </p>
               </div>
               
-              {isLoading ? (
-                <div className="space-y-3 pt-4">
-                  <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                    <span>INGESTING STREAM...</span>
-                    <span>ACTIVE</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {Object.entries(loadProgress).map(([file, count]) => (
-                      <div key={file} className="flex justify-between text-xs items-center">
-                        <span className="truncate max-w-[120px]">{file}</span>
-                        <span className="font-semibold text-secondary">
-                          {(count / 1000000).toFixed(1)}M rows
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="h-1.5 w-full bg-secondary/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-secondary animate-pulse w-full" />
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={loadProductionData}
-                  className="w-full py-3 px-4 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-90 transition-opacity"
-                >
-                  Load Production Datasets
-                </button>
-              )}
+              <button
+                onClick={loadProductionData}
+                className="w-full py-3 px-4 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-90 transition-opacity"
+              >
+                Load Production Datasets
+              </button>
             </div>
           </div>
-
 
           {error && (
             <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
@@ -114,6 +140,7 @@ export default function Dashboard() {
       </div>
     );
   }
+
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 pb-20">

@@ -22,11 +22,13 @@ dist
 *.sln
 *.sw?
 
-# Data (Ignore large CSV files)
+# Data (Ignore large CSV files, allow samples)
 public/data/*.csv
 public/data/*.xlsx
 *.csv
 *.xlsx
+!public/data/*Sample.csv
+
 
 # Logs
 npm-debug.log*

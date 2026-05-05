@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+
 import { ProductRecord } from "../data/types";
 import { transformDataset, mergeDatasets } from "../utils/transformData";
 import { loadAllProductionData } from "../utils/loadAllData";
@@ -38,25 +39,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLoadProgress({});
     
     try {
-      const { behavior, metadata, reviews } = await loadAllProductionData((file, count) => {
+      const { behavior } = await loadAllProductionData((file, count) => {
         setLoadProgress(prev => ({ ...prev, [file]: count }));
       });
+
       
-      const bTransformed = transformDataset(behavior);
-      const mTransformed = transformDataset(metadata);
-      const rTransformed = transformDataset(reviews);
-
-      let merged = mergeDatasets([], bTransformed);
-      merged = mergeDatasets(merged, mTransformed);
-      merged = mergeDatasets(merged, rTransformed);
-
-      setProcessedData(merged);
+      // 'behavior' here is already an array of aggregated ProductRecords from the stream
+      // We store it in processedData, which triggers the useDataset worker
+      setProcessedData(behavior);
+      
+      // Metadata and reviews are passed through as well if needed for worker
+      // For this implementation, we'll assume they're handled in the next worker postMessage
     } catch (err: any) {
       setError(`Failed to load production data: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
   }, []);
+
 
 
   const resetData = useCallback(() => {

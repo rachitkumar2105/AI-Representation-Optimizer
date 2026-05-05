@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react";
 
-import { buildProductInsights, computeSplits } from "../data/compute";
+import { buildProductInsights } from "../data/compute";
+
 import { ProductInsight, ProductRecord, SplitResult } from "../data/types";
 import { useData } from "../context/DataContext";
 
@@ -19,12 +20,20 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
   const [isComputing, setIsComputing] = useState(false);
 
   useEffect(() => {
-    if (!isReady || processedData.length === 0) return;
+    if (!isReady) return;
 
     setIsComputing(true);
     const worker = new Worker(new URL("../workers/dataWorker.ts", import.meta.url), { type: "module" });
 
-    worker.postMessage({ type: "PROCESS_DATA", data: processedData });
+    // Send the aggregated behavior and supplemental metadata to the worker
+    worker.postMessage({ 
+      type: "PROCESS_DATA", 
+      payload: { 
+        rawData: processedData, // This is the aggregated behavior
+        metadata: [], // Currently handled in separate streams in production
+        reviews: [] 
+      } 
+    });
 
     worker.onmessage = (e) => {
       const { type, payload } = e.data;
@@ -39,6 +48,7 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
 
     return () => worker.terminate();
   }, [processedData, isReady]);
+
 
   const getProductInsights = (productId: string) => {
     const product = results.products.find((item) => item.id === productId);

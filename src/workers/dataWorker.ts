@@ -1,18 +1,29 @@
-import { transformDataset } from "../utils/transformData";
 import { computeSplits } from "../data/compute";
+import { transformDataset, mergeDatasets } from "../utils/transformData";
 
-self.onmessage = async (e: MessageEvent) => {
-  const { type, data } = e.data;
+/**
+ * Production-Grade Data Worker
+ * Offloads heavy analytical transformations and statistical computations from the main thread.
+ */
+self.onmessage = (e: MessageEvent) => {
+  const { type, payload } = e.data;
 
   if (type === "PROCESS_DATA") {
     try {
-      // Step 1: Transform raw rows into structured ProductRecords
-      const transformed = transformDataset(data);
+      const { rawData, metadata, reviews } = payload;
       
-      // Step 2: Compute statistical splits
-      const result = computeSplits(transformed);
+      // Transform and Merge
+      const metaTransformed = transformDataset(metadata);
+      const reviewsTransformed = transformDataset(reviews);
       
-      self.postMessage({ type: "SUCCESS", payload: result });
+      let merged = rawData; // rawData is already aggregated behavior from streaming
+      if (metaTransformed.length > 0) merged = mergeDatasets(merged, metaTransformed);
+      if (reviewsTransformed.length > 0) merged = mergeDatasets(merged, reviewsTransformed);
+      
+      // Compute Splits
+      const results = computeSplits(merged);
+      
+      self.postMessage({ type: "SUCCESS", payload: results });
     } catch (error: any) {
       self.postMessage({ type: "ERROR", payload: error.message });
     }

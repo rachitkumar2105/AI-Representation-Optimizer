@@ -34,6 +34,8 @@ export function aggregateBehavior(chunk: any[], existingMap: Map<string, Product
         price: toNum(getVal(item, ["price"])),
         brand: String(getVal(item, ["brand"]) || "Unknown"),
         category: String(getVal(item, ["category_code", "category"]) || "Unknown"),
+        rating: 0,
+        description: "",
         views: 0,
         cart: 0,
         purchase: 0,
@@ -43,12 +45,21 @@ export function aggregateBehavior(chunk: any[], existingMap: Map<string, Product
 
     const event = String(getVal(item, ["event_type", "event_name"]) || "").toLowerCase();
     if (event === "view") record.views++;
-    else if (event === "cart") record.cart++;
-    else if (event === "purchase") record.purchase++;
+    else if (event === "cart" || event === "add_to_cart") record.cart++;
+    else if (event === "purchase" || event === "order") record.purchase++;
+
+    // Update dynamic attributes if present in behavioral row
+    const rawBrand = getVal(item, ["brand"]);
+    if (rawBrand && record.brand === "Unknown") record.brand = String(rawBrand);
+    
+    const rawCat = getVal(item, ["category_code", "category"]);
+    if (rawCat && record.category === "Unknown") record.category = String(rawCat);
   });
   
   return existingMap;
 }
+
+
 
 export function transformDataset(data: any[]): ProductRecord[] {
   if (!data || data.length === 0) return [];

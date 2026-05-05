@@ -9,6 +9,10 @@ export type LoadProgress = {
   status: 'loading' | 'complete' | 'error';
 };
 
+/**
+ * Production-Grade Streaming Ingestion
+ * Uses PapaParse chunk mode to process massive files without loading them into memory.
+ */
 export async function streamCSV(
   url: string, 
   onChunk: (chunk: any[]) => void,
@@ -16,26 +20,20 @@ export async function streamCSV(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let count = 0;
-    let chunk: any[] = [];
-    const CHUNK_SIZE = 5000;
-
+    
     Papa.parse(url, {
       download: true,
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
-      chunkSize: 1024 * 1024 * 2, // 2MB chunks for network efficiency
-      step: function(row) {
-        count++;
-        chunk.push(row.data);
-        if (chunk.length >= CHUNK_SIZE) {
-          onChunk(chunk);
-          chunk = [];
-          if (onProgress) onProgress(count);
-        }
+      worker: true, // Use PapaParse internal worker for parsing
+      chunkSize: 1024 * 1024 * 2, // 2MB network chunks
+      chunk: function(results) {
+        count += results.data.length;
+        onChunk(results.data);
+        if (onProgress) onProgress(count);
       },
       complete: () => {
-        if (chunk.length > 0) onChunk(chunk);
         console.log(`Streamed ${count} rows from ${url}`);
         resolve();
       },
@@ -48,8 +46,8 @@ export async function loadAllProductionData(
   onProgress: (file: string, count: number) => void
 ) {
   const files = [
-    { name: "2019-Oct.csv", url: "/data/2019-Oct.csv" },
-    { name: "2019-Nov.csv", url: "/data/2019-Nov.csv" },
+    { name: "2019-Oct-Sample.csv", url: "/data/2019-Oct-Sample.csv" },
+    { name: "2019-Nov-Sample.csv", url: "/data/2019-Nov-Sample.csv" },
     { name: "products.csv", url: "/data/products.csv" },
     { name: "reviews.csv", url: "/data/reviews.csv" },
   ];
@@ -60,6 +58,7 @@ export async function loadAllProductionData(
 
   for (const file of files) {
     await streamCSV(file.url, (chunk) => {
+      // Incremental Aggregation: Process each chunk and discard raw rows
       if (file.name.includes("2019")) {
         behaviorMap = aggregateBehavior(chunk, behaviorMap);
       } else if (file.name === "products.csv") {

@@ -1,14 +1,15 @@
 export type ProductRecord = {
   id: string;
   name: string;
-  category: string | null;
-  price: number | null;
-  rating: number | null;
-  description: string | null;
+  category: string;
+  brand: string;
+  price: number;
+  rating: number;
+  description: string;
   views: number;
   cart: number;
   purchase: number;
-  [key: string]: string | number | null;
+  [key: string]: any;
 };
 
 export type GroupStats = {
@@ -20,7 +21,9 @@ export type GroupStats = {
   totalCart: number;
   totalPurchase: number;
   share: number;
+  se: number;
 };
+
 
 export type SplitResult = {
   id: string;
