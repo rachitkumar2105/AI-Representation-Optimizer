@@ -3,9 +3,11 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { useData } from "../context/DataContext";
 import { useTheme } from "../hooks/useTheme";
+import { aggregateBehavior } from "../utils/transformData";
 
 export default function FileUploader() {
-  const { ingestData, setError, processedData, resetData } = useData();
+
+  const { ingestData, setError, resetData } = useData();
   const { theme } = useTheme();
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<string[]>([]);
@@ -18,16 +20,35 @@ export default function FileUploader() {
     const extension = file.name.split(".").pop()?.toLowerCase();
 
     if (extension === "csv") {
+      let behaviorMap = new Map();
+      let otherData: any[] = [];
+
       Papa.parse(file, {
         header: true,
         dynamicTyping: true,
-        complete: (results) => {
-          ingestData(results.data);
+        skipEmptyLines: true,
+        worker: true, // Offload to background thread to prevent permission/UI lock issues
+        chunk: (results) => {
+          const isBehavior = results.data.some((item: any) => 
+            Object.keys(item).some(k => ["event_type", "event_name"].includes(k.toLowerCase()))
+          );
+          
+          if (isBehavior) {
+            behaviorMap = aggregateBehavior(results.data, behaviorMap);
+          } else {
+            otherData.push(...results.data);
+          }
+        },
+        complete: () => {
+          if (behaviorMap.size > 0) ingestData(Array.from(behaviorMap.values()));
+          if (otherData.length > 0) ingestData(otherData);
           setError(null);
         },
         error: (err) => setError(`CSV Parse Error: ${err.message}`),
       });
     } else if (extension === "xlsx" || extension === "xls") {
+
+
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
