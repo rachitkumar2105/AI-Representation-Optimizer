@@ -15,22 +15,23 @@ type DatasetContextValue = {
 const DatasetContext = createContext<DatasetContextValue | undefined>(undefined);
 
 export function DatasetProvider({ children }: { children: ReactNode }) {
-  const { metadata, reviews, isReady } = useData();
+  const { processedData, isReady } = useData();
   const [results, setResults] = useState<{ products: ProductRecord[]; splits: SplitResult[] }>({ products: [], splits: [] });
   const [isComputing, setIsComputing] = useState(false);
 
   useEffect(() => {
-    if (!isReady || metadata.length === 0) return;
+    if (!isReady) return;
 
     setIsComputing(true);
     const worker = new Worker(new URL("../workers/dataWorker.ts", import.meta.url), { type: "module" });
 
-    // Pass the raw Amazon datasets to the worker for specialized processing
+    // Send the aggregated behavior and supplemental metadata to the worker
     worker.postMessage({ 
       type: "PROCESS_DATA", 
       payload: { 
-        metadata,
-        reviews 
+        rawData: processedData, // This is the aggregated behavior
+        metadata: [], // Currently handled in separate streams in production
+        reviews: [] 
       } 
     });
 
@@ -46,8 +47,7 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
     };
 
     return () => worker.terminate();
-  }, [metadata, reviews, isReady]);
-
+  }, [processedData, isReady]);
 
 
   const getProductInsights = (productId: string) => {

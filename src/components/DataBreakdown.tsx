@@ -40,10 +40,10 @@ export default function DataBreakdown({ splits }: DataBreakdownProps) {
             >
               <p className={`text-sm font-semibold ${title}`}>{split.featureLabel}</p>
               <p className={`mt-1 text-xs ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
-                Group A ({split.groupA.label}): {(split.groupA.conversion * 100).toFixed(2)}% proxy
+                Group A ({split.groupA.label}): {(split.groupA.conversion * 100).toFixed(2)}% conversion · {(split.groupA.cartConversion * 100).toFixed(2)}% cart
               </p>
               <p className={`text-xs ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
-                Group B ({split.groupB.label}): {(split.groupB.conversion * 100).toFixed(2)}% proxy
+                Group B ({split.groupB.label}): {(split.groupB.conversion * 100).toFixed(2)}% conversion · {(split.groupB.cartConversion * 100).toFixed(2)}% cart
               </p>
               <p className={`mt-2 text-xs ${theme === "dark" ? "text-emerald-200" : "text-emerald-600"}`}>
                 Difference (conversion): {(split.difference * 100).toFixed(2)}%

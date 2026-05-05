@@ -1,10 +1,17 @@
 import Papa from "papaparse";
+import { ProductRecord } from "../data/types";
 
 
+export type LoadProgress = {
+  file: string;
+  loaded: number;
+  total?: number;
+  status: 'loading' | 'complete' | 'error';
+};
 
 /**
- * Production-Grade Streaming Ingestion (Amazon Only)
- * Optimized for Products and Reviews datasets.
+ * Production-Grade Streaming Ingestion
+ * Uses PapaParse chunk mode to process massive files without loading them into memory.
  */
 export async function streamCSV(
   url: string, 
@@ -19,8 +26,8 @@ export async function streamCSV(
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
-      worker: true,
-      chunkSize: 1024 * 1024 * 2,
+      worker: true, // Use PapaParse internal worker for parsing
+      chunkSize: 1024 * 1024 * 2, // 2MB network chunks
       chunk: function(results) {
         count += results.data.length;
         onChunk(results.data);
@@ -35,6 +42,21 @@ export async function streamCSV(
   });
 }
 
+/**
+ * Vercel-Safe API Fetcher
+ * Loads pre-processed and aggregated product data to avoid browser-side heavy lifting.
+ */
+export async function fetchProductionInsights(): Promise<ProductRecord[]> {
+  try {
+    const response = await fetch("/data/products_processed.json");
+    if (!response.ok) throw new Error("API dataset not available");
+    return await response.json();
+  } catch (error) {
+    console.warn("Pre-processed data fetch failed, falling back to stream ingestion", error);
+    throw error;
+  }
+}
+
 export async function loadAllProductionData(
   onProgress: (file: string, count: number) => void
 ) {
@@ -43,22 +65,24 @@ export async function loadAllProductionData(
     { name: "reviews.csv", url: "/data/reviews.csv" },
   ];
 
-  const productsRaw: any[] = [];
-  const reviewsRaw: any[] = [];
+  const metadata: any[] = [];
+  const reviews: any[] = [];
 
   for (const file of files) {
     await streamCSV(file.url, (chunk) => {
       if (file.name === "products.csv") {
-        productsRaw.push(...chunk);
+        metadata.push(...chunk);
       } else if (file.name === "reviews.csv") {
-        reviewsRaw.push(...chunk);
+        reviews.push(...chunk);
       }
     }, (count) => onProgress(file.name, count));
   }
 
   return {
-    behavior: [], // No behavior logs in Amazon-only mode
-    metadata: productsRaw,
-    reviews: reviewsRaw
+    behavior: [], // Removed behavioral logs
+    metadata,
+    reviews
   };
 }
+
+

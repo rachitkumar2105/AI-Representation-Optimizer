@@ -9,43 +9,57 @@ const getVal = (obj: any, keys: string[]) => {
 };
 
 /**
- * Amazon-Only Data Pipeline
- * Merges products.csv and reviews.csv into a unified ProductRecord with proxy behavior.
+ * Step 2: Group Reviews by Product
  */
-export function processAmazonDataset(productsRaw: any[], reviewsRaw: any[]): ProductRecord[] {
-  // 1. Group Reviews by Product ASIN
-  const reviewAgg = new Map<string, { ratingSum: number; sentimentSum: number; count: number }>();
+export function aggregateReviews(reviews: any[]): Map<string, { rating: number, sentiment: number, count: number }> {
+  const agg = new Map<string, { ratingSum: number, sentimentSum: number, count: number }>();
   
-  reviewsRaw.forEach((item) => {
-    const asin = safeString(getVal(item, ["productASIN", "asin", "id"]));
-    if (!asin) return;
+  reviews.forEach(item => {
+    const pid = String(getVal(item, ["productASIN", "asin", "id"]) || "unknown");
+    if (pid === "unknown") return;
 
-    const stats = reviewAgg.get(asin) || { ratingSum: 0, sentimentSum: 0, count: 0 };
-    stats.ratingSum += safeNumber(getVal(item, ["rating", "Rating", "stars"]));
-    stats.sentimentSum += safeNumber(getVal(item, ["sentiment_score", "sentiment"]), 0);
-    stats.count++;
-    reviewAgg.set(asin, stats);
+    if (!agg.has(pid)) {
+      agg.set(pid, { ratingSum: 0, sentimentSum: 0, count: 0 });
+    }
+    const record = agg.get(pid)!;
+    record.ratingSum += safeNumber(getVal(item, ["rating"]));
+    record.sentimentSum += safeNumber(getVal(item, ["sentiment_score"]), 0);
+    record.count++;
   });
 
-  // 2. Map and Merge with Products
-  return productsRaw.map((item, idx) => {
-    const id = safeString(getVal(item, ["asin", "productASIN", "id"]) || `product-${idx}`);
-    const stats = reviewAgg.get(id);
+  const final = new Map<string, { rating: number, sentiment: number, count: number }>();
+  agg.forEach((val, key) => {
+    final.set(key, {
+      rating: val.ratingSum / val.count,
+      sentiment: val.sentimentSum / val.count,
+      count: val.count
+    });
+  });
+  return final;
+}
+
+/**
+ * Step 3 & 4: Map Products & Merge with Proxy Metrics
+ */
+export function processAmazonDataset(products: any[], reviewMap: Map<string, any>): ProductRecord[] {
+  return products.map((item, idx) => {
+    const id = String(getVal(item, ["asin", "productASIN", "id"]) || `p-${idx}`);
+    const reviews = reviewMap.get(id) || { rating: 0, sentiment: 0, count: 0 };
     
-    // Base Fields
-    const reviewCount = stats ? stats.count : 0;
-    const rating = stats ? stats.ratingSum / stats.count : safeNumber(getVal(item, ["rating", "Rating"]));
-    const sentiment = stats ? stats.sentimentSum / stats.count : 0;
-    
-    // Proxy Metric Derivation (Mandatory)
-    const interestScore = Math.log1p(reviewCount);
-    const trustScore = (rating / 5) * (sentiment > 0 ? sentiment : 1);
+    const price = safeNumber(getVal(item, ["price", "price_value"]));
+    const rating = reviews.rating || safeNumber(getVal(item, ["rating_stars", "rating"]));
+    const reviewCount = reviews.count || safeNumber(getVal(item, ["review_count", "reviews"]));
+    const sentiment = reviews.sentiment || 0;
+
+    // Step 5: Proxy Metrics
+    const interestScore = Math.log(reviewCount + 1);
+    const trustScore = (rating / 5) * (sentiment || 1);
     const conversionProxy = trustScore * interestScore;
 
     return {
       id,
       name: safeString(getVal(item, ["title", "name", "product_name"]) || `Product ${id}`),
-      price: safeNumber(getVal(item, ["price_value", "price"])),
+      price,
       rating,
       reviewCount,
       sentiment,
@@ -57,20 +71,18 @@ export function processAmazonDataset(productsRaw: any[], reviewsRaw: any[]): Pro
         trustScore,
         conversionProxy
       },
-      ...item // Keep raw fields for zero-heuristic discovery
+      ...item
     };
   });
 }
 
-/**
- * Legacy support for DatasetProvider
- */
-export function transformDataset(data: any[]): ProductRecord[] {
-    return processAmazonDataset(data, []);
+// Keeping fallback for generic ingestion
+export function transformDataset(data: any[]): any[] {
+  return data;
 }
 
 export function mergeDatasets(base: ProductRecord[], addition: ProductRecord[]): ProductRecord[] {
-  const baseMap = new Map(base.map(p => [p.id, p]));
-  addition.forEach(p => baseMap.set(p.id, { ...baseMap.get(p.id), ...p }));
-  return Array.from(baseMap.values());
+  const map = new Map(base.map(p => [p.id, p]));
+  addition.forEach(p => map.set(p.id, { ...map.get(p.id), ...p }));
+  return Array.from(map.values());
 }

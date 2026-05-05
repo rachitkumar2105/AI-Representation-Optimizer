@@ -26,8 +26,10 @@ export default function FileUploader() {
         dynamicTyping: true,
         skipEmptyLines: true,
         worker: true,
-        complete: (results) => {
+        chunk: (results) => {
           ingestData(results.data);
+        },
+        complete: () => {
           setError(null);
         },
         error: (err) => setError(`CSV Parse Error: ${err.message}`),
