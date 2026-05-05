@@ -16,6 +16,8 @@ export type MatchMetrics = {
 
 type DataContextType = {
   processedData: ProductRecord[];
+  rawMetadata: any[];
+  rawReviews: any[];
   ingestData: (data: any[]) => void;
   loadProductionData: () => Promise<void>;
   resetData: () => void;
@@ -31,11 +33,15 @@ type DataContextType = {
 
 
 
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [processedData, setProcessedData] = useState<ProductRecord[]>([]);
+  const [rawMetadata, setRawMetadata] = useState<any[]>([]);
+  const [rawReviews, setRawReviews] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadProgress, setLoadProgress] = useState<Record<string, number>>({});
   const [matchMetrics, setMatchMetrics] = useState<MatchMetrics | null>(null);
@@ -73,10 +79,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Pass the raw metadata and reviews to the useDataset hook which orchestrates the worker
       // For simplicity in this hybrid mode, we pass metadata as the 'processedData' trigger
       // but ensure reviews are available for the worker merge.
-      // We'll store metadata in processedData and let the hook handle the rest.
+      setRawMetadata(metadata);
+      setRawReviews(reviews);
       setProcessedData(metadata);
-      // We might need to store reviews too, but for now we'll assume the worker gets them.
     } catch (err: any) {
+
       setError(`Failed to load production data: ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -99,6 +106,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     <DataContext.Provider
       value={{
         processedData,
+        rawMetadata,
+        rawReviews,
         ingestData,
         loadProductionData,
         resetData,
@@ -112,6 +121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         isReady,
       }}
     >
+
 
       {children}
     </DataContext.Provider>

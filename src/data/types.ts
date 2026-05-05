@@ -1,13 +1,24 @@
+export type CategoryStats = {
+  category: string;
+  avgRating: number;
+  avgProxy: number;
+  count: number;
+  rank: number;
+  percentile: number;
+};
+
 export type ProductRecord = {
   id: string;
   name: string;
-  category: string;
-  brand: string;
   price: number;
   rating: number;
   reviewCount: number;
   sentiment: number;
+  category: string;
+  brand: string;
   description: string;
+  healthScore?: number;
+  categoryStats?: CategoryStats;
   behavior: {
     interestScore: number;
     trustScore: number;

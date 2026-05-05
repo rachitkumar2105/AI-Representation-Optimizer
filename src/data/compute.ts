@@ -1,4 +1,5 @@
-import { ProductInsight, ProductRecord, SplitResult, GroupStats } from "./types";
+import { ProductInsight, ProductRecord, SplitResult, GroupStats, CategoryStats } from "./types";
+
 
 import { safeNumber, safeString } from "../utils/safe";
 
@@ -17,14 +18,32 @@ const computeSE = (p: number, n: number) => {
 };
 
 
-const getConfidence = (n: number, totalN: number): "Low" | "Medium" | "High" => {
+export const computeHealthScore = (product: ProductRecord): number => {
+  const rScore = (product.rating / 5) * 40; 
+  const sScore = product.sentiment * 30; 
+  const iScore = Math.min((product.reviewCount / 1000) * 30, 30); 
+  return Math.round(rScore + sScore + iScore);
+};
 
+export const getCategoryStats = (category: string, allProducts: ProductRecord[]): CategoryStats => {
+  const filtered = allProducts.filter(p => p.category === category);
+  if (filtered.length === 0) return { category, avgRating: 0, avgProxy: 0, count: 0, rank: 0, percentile: 0 };
+  
+
+
+  const avgRating = filtered.reduce((s, p) => s + p.rating, 0) / filtered.length;
+  const avgProxy = filtered.reduce((s, p) => s + (p.behavior?.conversionProxy || 0), 0) / filtered.length;
+  
+  return { category, avgRating, avgProxy, count: filtered.length, rank: 0, percentile: 0 };
+};
+
+const getConfidence = (n: number, totalN: number): "Low" | "Medium" | "High" => {
   const proportion = n / Math.max(totalN, 1);
-  // Strict Judge Rule: No High Confidence if n < 1000 or < 5% of total
-  if (n < 100 || proportion < 0.01) return "Low"; // Extra safety for very small samples
+  if (n < 100 || proportion < 0.01) return "Low"; 
   if (n < 1000 || proportion < 0.05) return "Medium";
   return "High";
 };
+
 
 const computeGroupStats = (products: ProductRecord[], totalCount: number, label: string): GroupStats => {
   const totalProxy = products.reduce((sum, item) => sum + (item.behavior?.conversionProxy ?? 0), 0);

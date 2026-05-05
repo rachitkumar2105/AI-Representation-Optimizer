@@ -7,16 +7,43 @@ import ActionCard from "../components/ActionCard";
 import FileUploader from "../components/FileUploader";
 import DataBreakdown from "../components/DataBreakdown";
 import TransparencyPanel from "../components/TransparencyPanel";
+import QuickInsights from "../components/QuickInsights";
+import FilterBar from "../components/FilterBar";
+import ComparisonPanel from "../components/ComparisonPanel";
+import CategoryBenchmark from "../components/CategoryBenchmark";
+import HealthScore from "../components/HealthScore";
 import { useDataset } from "../hooks/useDataset";
 import { useTheme } from "../hooks/useTheme";
 import { useData } from "../context/DataContext";
+import { computeHealthScore, getCategoryStats } from "../data/compute";
+
+
 
 export default function Dashboard() {
   const { isReady, loadProductionData, isLoading, error, isAuditMode } = useData();
-  const { splits, products, loading, getProductInsights } = useDataset();
+  const { splits, products: allProducts, loading, getProductInsights } = useDataset();
   const { theme } = useTheme();
 
+  // 1. Filter State
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [minRating, setMinRating] = useState(0);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+
+  // 2. Selection State
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
+  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
+
+  // 3. Derived Data (Filtered)
+  const products = useMemo(() => {
+    return allProducts.filter(p => {
+      const matchCat = selectedCategory === "All" || p.category === selectedCategory;
+      const matchRating = p.rating >= minRating;
+      const matchPrice = p.price <= priceRange[1];
+      return matchCat && matchRating && matchPrice;
+    });
+  }, [allProducts, selectedCategory, minRating, priceRange]);
+
+  const categories = useMemo(() => Array.from(new Set(allProducts.map(p => p.category))), [allProducts]);
 
   useEffect(() => {
     if (isReady && products.length > 0 && !selectedProductId) {
@@ -25,8 +52,13 @@ export default function Dashboard() {
   }, [isReady, products, selectedProductId]);
 
   const selectedProduct = useMemo(
-    () => products.find((product) => product.id === selectedProductId),
-    [products, selectedProductId]
+    () => allProducts.find((product) => product.id === selectedProductId),
+    [allProducts, selectedProductId]
+  );
+
+  const comparedProducts = useMemo(
+    () => allProducts.filter(p => comparisonIds.includes(p.id)),
+    [allProducts, comparisonIds]
   );
 
   const insights = useMemo(() => {
@@ -36,6 +68,19 @@ export default function Dashboard() {
 
   const topSplit = splits[0];
   const topInsight = insights.find((insight) => insight.splitId === topSplit?.id);
+
+  const selectedHealth = useMemo(() => selectedProduct ? computeHealthScore(selectedProduct) : 0, [selectedProduct]);
+  const selectedCatStats = useMemo(() => selectedProduct ? getCategoryStats(selectedProduct.category, allProducts) : undefined, [selectedProduct, allProducts]);
+
+  const handleExport = () => {
+    const data = JSON.stringify({ products, insights: splits }, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `amazon-insights-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+  };
 
   if (!isReady) {
     return (
@@ -110,28 +155,53 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-12 pb-20">
+    <div className="mx-auto max-w-7xl space-y-12 pb-20 px-4 sm:px-8">
       {/* 1. Header with Controls */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between pt-8">
         <div>
-          <h1 className={`text-3xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Dataset Analysis</h1>
+          <h1 className={`text-3xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Insight Engine</h1>
           <p className={`mt-1 text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
             Analyzing {products.length} products with performance proxies derived from customer sentiment.
           </p>
         </div>
-        <div className="w-full lg:w-72">
+        <div className="flex flex-wrap gap-4">
+          <button 
+            onClick={handleExport}
+            className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+              theme === "dark" ? "border-slate-700 bg-slate-800 text-slate-300 hover:text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            📥 Export Insights
+          </button>
           <button 
             onClick={() => window.location.reload()} 
-            className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
               theme === "dark" ? "border-slate-700 bg-slate-800 text-white hover:bg-slate-700" : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
             }`}
           >
-            Reset Dataset
+            Reset
           </button>
         </div>
       </div>
 
+      <QuickInsights splits={splits} />
+
+      <FilterBar 
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+        priceRange={priceRange}
+        onPriceChange={setPriceRange}
+        minRating={minRating}
+        onRatingChange={setMinRating}
+      />
+
       <TransparencyPanel />
+
+      <ComparisonPanel 
+        products={comparedProducts} 
+        onRemove={(id) => setComparisonIds(prev => prev.filter(cid => cid !== id))} 
+      />
 
       {/* 2. Decision Strip */}
       <section id="decision-strip">
@@ -151,11 +221,30 @@ export default function Dashboard() {
 
       <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
         <aside className="space-y-8">
-          <ProductSelector
-            products={products}
-            selectedId={selectedProduct?.id || ""}
-            onSelect={setSelectedProductId}
-          />
+          <div className="flex flex-col gap-4">
+            <ProductSelector
+              products={products}
+              selectedId={selectedProduct?.id || ""}
+              onSelect={setSelectedProductId}
+            />
+            <button 
+              onClick={() => {
+                if (selectedProduct && !comparisonIds.includes(selectedProduct.id)) {
+                  setComparisonIds(prev => [...prev.slice(-2), selectedProduct.id]);
+                }
+              }}
+              disabled={!selectedProduct || comparisonIds.includes(selectedProduct?.id || "")}
+              className={`py-3 rounded-xl border font-bold text-xs transition-all ${
+                theme === "dark" ? "border-slate-800 hover:bg-slate-800" : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              ⚖️ Add to Comparison
+            </button>
+          </div>
+          
+          <HealthScore score={selectedHealth} />
+          <CategoryBenchmark product={selectedProduct} stats={selectedCatStats} />
+          
           {isAuditMode && <DataBreakdown splits={splits} />}
         </aside>
 
