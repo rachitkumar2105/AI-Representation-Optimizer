@@ -15,12 +15,14 @@ export default function DataBreakdown({ splits }: DataBreakdownProps) {
     <div className={`rounded-3xl border p-6 ${card}`}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className={`text-xl font-semibold ${title}`}>Data details</h2>
+          <h2 className={`text-xl font-semibold ${title}`}>Statistical breakdown</h2>
           <p className={`mt-1 text-sm ${muted}`}>
-            Raw sample sizes, distributions, and variance for split validation.
+            Review-derived proxy metrics and sample distributions for split validation.
           </p>
         </div>
-        <span className={`text-xs uppercase tracking-[0.2em] ${muted}`}>Collapsible</span>
+        <span className={`text-[10px] font-bold uppercase tracking-widest text-amber-500`}>
+          Proxy Metrics Active
+        </span>
       </div>
       <details
         className={`mt-4 rounded-2xl border p-4 ${
@@ -40,11 +42,12 @@ export default function DataBreakdown({ splits }: DataBreakdownProps) {
             >
               <p className={`text-sm font-semibold ${title}`}>{split.featureLabel}</p>
               <p className={`mt-1 text-xs ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
-                Group A ({split.groupA.label}): {(split.groupA.conversion * 100).toFixed(2)}% conversion · {(split.groupA.cartConversion * 100).toFixed(2)}% cart
+                Group A ({split.groupA.label}): {(split.groupA.conversion * 100).toFixed(2)}% Proxy Conv
               </p>
               <p className={`text-xs ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
-                Group B ({split.groupB.label}): {(split.groupB.conversion * 100).toFixed(2)}% conversion · {(split.groupB.cartConversion * 100).toFixed(2)}% cart
+                Group B ({split.groupB.label}): {(split.groupB.conversion * 100).toFixed(2)}% Proxy Conv
               </p>
+
               <p className={`mt-2 text-xs ${theme === "dark" ? "text-emerald-200" : "text-emerald-600"}`}>
                 Difference (conversion): {(split.difference * 100).toFixed(2)}%
               </p>

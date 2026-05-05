@@ -40,7 +40,8 @@ export default function DifferenceTable({ splits }: DifferenceTableProps) {
             <tr className={theme === "dark" ? "bg-slate-900/80 text-slate-400" : "bg-slate-50/80 text-slate-500"}>
               <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[10px]">Feature Identity</th>
               <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[10px]">Comparative Splits</th>
-              <th className="px-6 py-4 text-right font-semibold uppercase tracking-wider text-[10px]">Delta Impact</th>
+              <th className="px-6 py-4 text-right font-semibold uppercase tracking-wider text-[10px]">Proxy Delta</th>
+
             </tr>
           </thead>
           <tbody className={`divide-y ${theme === "dark" ? "divide-slate-800/50" : "divide-slate-200"}`}>
